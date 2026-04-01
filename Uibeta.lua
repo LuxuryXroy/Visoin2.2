@@ -4,7 +4,6 @@ if CoreGui:FindFirstChild("SwitchHubUI") then
 end
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 -- Thông số màu sắc & UI
@@ -31,7 +30,7 @@ ToggleBtn.Parent = ScreenGui
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Image = "rbxassetid://16060333448" -- Thay ID Avatar của bạn vào đây
+ToggleBtn.Image = "rbxassetid://16060333448" -- Avatar ID của bạn
 local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(1, 0)
 ToggleCorner.Parent = ToggleBtn
@@ -46,10 +45,12 @@ MainFrame.BackgroundColor3 = Colors.MainBG
 MainFrame.BackgroundTransparency = TransparencyBG
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
+MainFrame.Visible = false -- Ẩn lúc đầu
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 8)
 MainCorner.Parent = MainFrame
 
+-- Kéo thả Main Frame
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -79,7 +80,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- 4. Topbar
+-- 4. Topbar & Nút Xóa UI
 local Topbar = Instance.new("Frame")
 Topbar.Size = UDim2.new(1, 0, 0, 40)
 Topbar.BackgroundTransparency = 1
@@ -89,7 +90,7 @@ local IconApp = Instance.new("ImageLabel")
 IconApp.Size = UDim2.new(0, 20, 0, 20)
 IconApp.Position = UDim2.new(0, 10, 0, 10)
 IconApp.BackgroundTransparency = 1
-IconApp.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png" -- Bạn có thể thay ID icon cỏ 4 lá vào đây
+IconApp.Image = "rbxassetid://16060333448"
 IconApp.Parent = Topbar
 
 local Title = Instance.new("TextLabel")
@@ -113,7 +114,7 @@ CloseBtn.TextSize = 18
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = Topbar
 
--- 5. Bảng Xác nhận Xóa UI
+-- Bảng Xác nhận Xóa UI
 local ConfirmFrame = Instance.new("Frame")
 ConfirmFrame.Size = UDim2.new(0, 250, 0, 120)
 ConfirmFrame.Position = UDim2.new(0.5, -125, 0.5, -60)
@@ -159,7 +160,41 @@ CloseBtn.MouseButton1Click:Connect(function() ConfirmFrame.Visible = true end)
 NoBtn.MouseButton1Click:Connect(function() ConfirmFrame.Visible = false end)
 YesBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
--- 6. BỔ SUNG: Sidebar & Các Nút Menu
+-- 5. Hệ thống Quản lý Trang & Tabs
+local PagesFolder = Instance.new("Folder", MainFrame)
+local Pages = {}
+local SidebarButtons = {}
+local InnerTabFrames = {}
+
+local ContentArea = Instance.new("Frame")
+ContentArea.Size = UDim2.new(1, -150, 1, -80)
+ContentArea.Position = UDim2.new(0, 150, 0, 40)
+ContentArea.BackgroundTransparency = 1
+ContentArea.Parent = MainFrame
+
+-- Hàm chuyển đổi Trang ở Menu Trái
+local function SwitchSidebarTab(targetPageName)
+    -- Ẩn tất cả trang và tab con đang mở
+    for name, page in pairs(Pages) do
+        page.Visible = (name == targetPageName)
+        if page:FindFirstChild("CardsGrid") then
+            page.CardsGrid.Visible = true -- Reset lại Grid khi vào trang
+        end
+    end
+    for _, tab in pairs(InnerTabFrames) do
+        tab.Visible = false
+    end
+    
+    -- Cập nhật màu nút bên trái
+    for name, btnData in pairs(SidebarButtons) do
+        local isSelected = (name == targetPageName)
+        btnData.Btn.BackgroundTransparency = isSelected and 0.93 or 1
+        btnData.Icon.ImageColor3 = isSelected and Colors.ButtonBlue or Colors.TextGray
+        btnData.Label.TextColor3 = isSelected and Colors.TextWhite or Colors.TextGray
+    end
+end
+
+-- 6. Sidebar (Menu trái)
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 150, 1, -80)
 Sidebar.Position = UDim2.new(0, 0, 0, 40)
@@ -178,12 +213,11 @@ SidebarPadding.PaddingTop = UDim.new(0, 10)
 SidebarPadding.PaddingLeft = UDim.new(0, 10)
 SidebarPadding.PaddingRight = UDim.new(0, 10)
 
--- Lệnh tạo nút bên Menu trái
-local function CreateSidebarButton(text, isSelected)
+-- Hàm tạo Nút Sidebar
+local function CreateSidebarButton(text, iconId, pageName)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(1, 0, 0, 32)
     Btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.BackgroundTransparency = isSelected and 0.93 or 1 -- Nút được chọn sẽ sáng nhẹ lên
     Btn.Text = ""
     Btn.Parent = Sidebar
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
@@ -192,8 +226,7 @@ local function CreateSidebarButton(text, isSelected)
     Icon.Size = UDim2.new(0, 16, 0, 16)
     Icon.Position = UDim2.new(0, 10, 0.5, -8)
     Icon.BackgroundTransparency = 1
-    Icon.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png" -- Cần thay ID icon tương ứng
-    Icon.ImageColor3 = isSelected and Colors.ButtonBlue or Colors.TextGray
+    Icon.Image = iconId
     Icon.Parent = Btn
     
     local Label = Instance.new("TextLabel")
@@ -201,41 +234,44 @@ local function CreateSidebarButton(text, isSelected)
     Label.Position = UDim2.new(0, 35, 0, 0)
     Label.BackgroundTransparency = 1
     Label.Text = text
-    Label.TextColor3 = isSelected and Colors.TextWhite or Colors.TextGray
     Label.Font = Enum.Font.GothamSemibold
     Label.TextSize = 13
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Parent = Btn
     
-    return Btn
+    SidebarButtons[pageName] = {Btn = Btn, Icon = Icon, Label = Label}
+    
+    Btn.MouseButton1Click:Connect(function()
+        SwitchSidebarTab(pageName)
+    end)
 end
 
--- Tạo 4 nút như trong ảnh
-local SidebarBtn1 = CreateSidebarButton("Farming", true) 
-local SidebarBtn2 = CreateSidebarButton("</> Tools Beta", false)
-local SidebarBtn3 = CreateSidebarButton("Setting", false)
-local SidebarBtn4 = CreateSidebarButton("Information", false)
+-- 7. Hàm Tạo Trang và Chức năng (Cards & Click Tab)
+local function CreatePage(pageName)
+    local Page = Instance.new("Frame")
+    Page.Name = pageName
+    Page.Size = UDim2.new(1, 0, 1, 0)
+    Page.BackgroundTransparency = 1
+    Page.Visible = false
+    Page.Parent = ContentArea
+    Pages[pageName] = Page
+    
+    local CardsGrid = Instance.new("Frame")
+    CardsGrid.Name = "CardsGrid"
+    CardsGrid.Size = UDim2.new(1, -20, 1, -20)
+    CardsGrid.Position = UDim2.new(0, 10, 0, 10)
+    CardsGrid.BackgroundTransparency = 1
+    CardsGrid.Parent = Page
 
--- 7. Khu vực Nội dung chính (Các thẻ bên phải)
-local ContentArea = Instance.new("Frame")
-ContentArea.Size = UDim2.new(1, -150, 1, -80)
-ContentArea.Position = UDim2.new(0, 150, 0, 40)
-ContentArea.BackgroundTransparency = 1
-ContentArea.Parent = MainFrame
+    local UIGridLayout = Instance.new("UIGridLayout")
+    UIGridLayout.CellSize = UDim2.new(0.48, 0, 0, 110)
+    UIGridLayout.CellPadding = UDim2.new(0.04, 0, 0, 15)
+    UIGridLayout.Parent = CardsGrid
 
-local CardsGrid = Instance.new("Frame")
-CardsGrid.Size = UDim2.new(1, -20, 1, -20)
-CardsGrid.Position = UDim2.new(0, 10, 0, 10)
-CardsGrid.BackgroundTransparency = 1
-CardsGrid.Parent = ContentArea
+    return Page, CardsGrid
+end
 
-local UIGridLayout = Instance.new("UIGridLayout")
-UIGridLayout.CellSize = UDim2.new(0.48, 0, 0, 110)
-UIGridLayout.CellPadding = UDim2.new(0.04, 0, 0, 15)
-UIGridLayout.Parent = CardsGrid
-
--- Hàm tạo các Thẻ (Card)
-local function CreateCard(title, desc, parent)
+local function CreateCard(title, desc, parentGrid, pageName)
     local Card = Instance.new("Frame")
     Card.BackgroundColor3 = Colors.CardBG
     Card.BackgroundTransparency = 0.2
@@ -246,8 +282,8 @@ local function CreateCard(title, desc, parent)
     Stroke.Parent = Card
 
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(1, -60, 0, 25)
-    TitleLabel.Position = UDim2.new(0, 60, 0, 15)
+    TitleLabel.Size = UDim2.new(1, -20, 0, 25)
+    TitleLabel.Position = UDim2.new(0, 15, 0, 15)
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = title
     TitleLabel.TextColor3 = Colors.TextWhite
@@ -257,8 +293,8 @@ local function CreateCard(title, desc, parent)
     TitleLabel.Parent = Card
 
     local DescLabel = Instance.new("TextLabel")
-    DescLabel.Size = UDim2.new(1, -60, 0, 15)
-    DescLabel.Position = UDim2.new(0, 60, 0, 40)
+    DescLabel.Size = UDim2.new(1, -20, 0, 15)
+    DescLabel.Position = UDim2.new(0, 15, 0, 40)
     DescLabel.BackgroundTransparency = 1
     DescLabel.Text = desc
     DescLabel.TextColor3 = Colors.TextGray
@@ -278,13 +314,11 @@ local function CreateCard(title, desc, parent)
     ClickBtn.Parent = Card
     Instance.new("UICorner", ClickBtn).CornerRadius = UDim.new(0, 4)
 
-    Card.Parent = parent
-    return ClickBtn, Card
+    Card.Parent = parentGrid
+    return ClickBtn
 end
 
--- 8. Tạo Tabs & Logic chuyển đổi Tab
-local TabFrames = {}
-local function CreateTab(name)
+local function CreateInnerTab(tabName, parentPageName)
     local TabFrame = Instance.new("ScrollingFrame")
     TabFrame.Size = UDim2.new(1, -20, 1, -20)
     TabFrame.Position = UDim2.new(0, 10, 0, 10)
@@ -292,44 +326,77 @@ local function CreateTab(name)
     TabFrame.ScrollBarThickness = 2
     TabFrame.Visible = false
     TabFrame.Parent = ContentArea
-    TabFrames[name] = TabFrame
+    InnerTabFrames[tabName] = TabFrame
 
     local BackBtn = Instance.new("TextButton")
     BackBtn.Size = UDim2.new(0, 80, 0, 25)
     BackBtn.BackgroundColor3 = Colors.CardBG
-    BackBtn.Text = "< Quay Lại"
+    BackBtn.Text = "<"
     BackBtn.TextColor3 = Colors.TextWhite
     BackBtn.Font = Enum.Font.GothamSemibold
     BackBtn.Parent = TabFrame
     Instance.new("UICorner", BackBtn).CornerRadius = UDim.new(0, 4)
 
+    -- Nút quay lại: Ẩn tab hiện tại, hiện lại bảng CardsGrid của trang tương ứng
     BackBtn.MouseButton1Click:Connect(function()
         TabFrame.Visible = false
-        CardsGrid.Visible = true
+        if Pages[parentPageName] and Pages[parentPageName]:FindFirstChild("CardsGrid") then
+            Pages[parentPageName].CardsGrid.Visible = true
+        end
     end)
     return TabFrame
 end
 
-local btn1 = CreateCard("Auto Fruits", "Nhặt Trái/Quay/lưu trữ", CardsGrid)
-local btn2 = CreateCard("Teleport/Time", "Dịch Chuyển/thời gian", CardsGrid)
-local btn3 = CreateCard("Farming", "Xương/Vua bột...", CardsGrid)
-local btn4 = CreateCard("Esp Local", "Định vị...", CardsGrid)
-
-local tab1 = CreateTab("Auto Fruits")
-local tab2 = CreateTab("Teleport/Time")
-local tab3 = CreateTab("Farming")
-local tab4 = CreateTab("Esp Local")
-
-local function bindTabBtn(btn, tabFrame)
-    btn.MouseButton1Click:Connect(function()
-        CardsGrid.Visible = false
-        for _, v in pairs(TabFrames) do v.Visible = false end
+local function BindClickTab(clickBtn, tabFrame, parentGrid)
+    clickBtn.MouseButton1Click:Connect(function()
+        parentGrid.Visible = false
+        for _, v in pairs(InnerTabFrames) do v.Visible = false end
         tabFrame.Visible = true
     end)
 end
-bindTabBtn(btn1, tab1); bindTabBtn(btn2, tab2); bindTabBtn(btn3, tab3); bindTabBtn(btn4, tab4)
 
--- 9. Footer (Thanh dưới cùng)
+-- ================= CÀI ĐẶT CÁC TRANG & NÚT =================
+
+-- Nút bên Sidebar với Icon (Các ID này là icon chuẩn của Roblox)
+CreateSidebarButton("Farming", "rbxassetid://7733674079", "FarmingPage") 
+CreateSidebarButton("</> Tools Beta", "rbxassetid://7733765045", "ToolsPage")
+CreateSidebarButton("Setting", "rbxassetid://7733679610", "SettingPage")
+CreateSidebarButton("Information", "rbxassetid://7733677306", "InfoPage")
+
+-- TRANG 1: FARMING
+local PageFarming, GridFarming = CreatePage("FarmingPage")
+local c1 = CreateCard("Auto Fruits", "Nhặt Trái/Quay/lưu trữ", GridFarming, "FarmingPage")
+local c2 = CreateCard("Teleport/Time", "Dịch Chuyển/thời gian", GridFarming, "FarmingPage")
+local c3 = CreateCard("Farming", "Xương/Vua bột...", GridFarming, "FarmingPage")
+local c4 = CreateCard("Esp Local", "Định vị...", GridFarming, "FarmingPage")
+
+BindClickTab(c1, CreateInnerTab("AutoFruits_Tab", "FarmingPage"), GridFarming)
+BindClickTab(c2, CreateInnerTab("Teleport_Tab", "FarmingPage"), GridFarming)
+BindClickTab(c3, CreateInnerTab("Farm_Tab", "FarmingPage"), GridFarming)
+BindClickTab(c4, CreateInnerTab("ESP_Tab", "FarmingPage"), GridFarming)
+
+-- TRANG 2: TOOLS BETA
+local PageTools, GridTools = CreatePage("ToolsPage")
+local c5 = CreateCard("Server Hop", "Đổi máy chủ tự động", GridTools, "ToolsPage")
+BindClickTab(c5, CreateInnerTab("ServerHop_Tab", "ToolsPage"), GridTools)
+
+-- TRANG 3: SETTING
+local PageSetting, GridSetting = CreatePage("SettingPage")
+local c6 = CreateCard("Theme Color", "Đổi màu giao diện", GridSetting, "SettingPage")
+local c7 = CreateCard("Binds", "Cài đặt phím tắt", GridSetting, "SettingPage")
+BindClickTab(c6, CreateInnerTab("Theme_Tab", "SettingPage"), GridSetting)
+BindClickTab(c7, CreateInnerTab("Binds_Tab", "SettingPage"), GridSetting)
+
+-- TRANG 4: INFORMATION
+local PageInfo, GridInfo = CreatePage("InfoPage")
+local c8 = CreateCard("About Script", "Thông tin phiên bản", GridInfo, "InfoPage")
+BindClickTab(c8, CreateInnerTab("About_Tab", "InfoPage"), GridInfo)
+
+-- Mặc định mở tab Farming đầu tiên
+SwitchSidebarTab("FarmingPage")
+
+
+-- 8. Footer (Thanh dưới cùng)
 local Footer = Instance.new("Frame")
 Footer.Size = UDim2.new(1, 0, 0, 40)
 Footer.Position = UDim2.new(0, 0, 1, -40)
