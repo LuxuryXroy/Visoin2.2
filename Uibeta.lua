@@ -5,6 +5,7 @@ end
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService") -- Thêm TweenService cho Notification
 
 -- Thông số màu sắc & UI
 local Colors = {
@@ -357,7 +358,7 @@ end
 
 -- ================= CÀI ĐẶT CÁC TRANG & NÚT =================
 
--- Nút bên Sidebar với Icon (Các ID này là icon chuẩn của Roblox)
+-- Nút bên Sidebar với Icon
 CreateSidebarButton("Farming", "rbxassetid://7733674079", "FarmingPage") 
 CreateSidebarButton("</> Tools Beta", "rbxassetid://7733765045", "ToolsPage")
 CreateSidebarButton("Setting", "rbxassetid://7733679610", "SettingPage")
@@ -425,3 +426,65 @@ Watermark.Font = Enum.Font.GothamBold
 Watermark.TextSize = 12
 Watermark.TextXAlignment = Enum.TextXAlignment.Right
 Watermark.Parent = Footer
+
+-- ================= HỆ THỐNG THÔNG BÁO (NOTIFICATION) =================
+local function SendNotification(title, text, duration)
+    -- Tạo Frame thông báo
+    local NotifFrame = Instance.new("Frame")
+    NotifFrame.Size = UDim2.new(0, 260, 0, 70)
+    NotifFrame.Position = UDim2.new(1, 50, 1, -100) -- Bắt đầu ở ngoài màn hình (góc dưới phải)
+    NotifFrame.BackgroundColor3 = Colors.CardBG
+    NotifFrame.BorderSizePixel = 0
+    NotifFrame.ZIndex = 100
+    NotifFrame.Parent = ScreenGui
+    
+    -- Bo góc cho thông báo
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = NotifFrame
+    
+    -- Viền mỏng trang trí
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Colors.ButtonBlue
+    Stroke.Thickness = 1.5
+    Stroke.Parent = NotifFrame
+
+    -- Tiêu đề
+    local TitleLbl = Instance.new("TextLabel")
+    TitleLbl.Size = UDim2.new(1, -20, 0, 30)
+    TitleLbl.Position = UDim2.new(0, 10, 0, 5)
+    TitleLbl.BackgroundTransparency = 1
+    TitleLbl.Text = title
+    TitleLbl.TextColor3 = Colors.TextWhite
+    TitleLbl.Font = Enum.Font.GothamBold
+    TitleLbl.TextSize = 14
+    TitleLbl.ZIndex = 101
+    TitleLbl.Parent = NotifFrame
+
+    -- Nội dung
+    local MsgLbl = Instance.new("TextLabel")
+    MsgLbl.Size = UDim2.new(1, -20, 0, 30)
+    MsgLbl.Position = UDim2.new(0, 10, 0, 30)
+    MsgLbl.BackgroundTransparency = 1
+    MsgLbl.Text = text
+    MsgLbl.TextColor3 = Color3.fromRGB(85, 255, 127) -- Màu xanh lá báo thành công
+    MsgLbl.Font = Enum.Font.GothamSemibold
+    MsgLbl.TextSize = 14
+    MsgLbl.ZIndex = 101
+    MsgLbl.Parent = NotifFrame
+
+    -- Hiệu ứng trượt vào
+    local tweenIn = TweenService:Create(NotifFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(1, -280, 1, -100)})
+    tweenIn:Play()
+
+    -- Đợi hết thời gian và trượt ra
+    task.delay(duration, function()
+        local tweenOut = TweenService:Create(NotifFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 50, 1, -100)})
+        tweenOut:Play()
+        tweenOut.Completed:Wait()
+        NotifFrame:Destroy() -- Xóa UI Notification để giải phóng bộ nhớ
+    end)
+end
+
+-- Kích hoạt thông báo khi vừa chạy script xong
+SendNotification(" Switch Hub | Blox Fruits ", " Notification Thành Công ", 3.5)
